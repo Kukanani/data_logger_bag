@@ -1,5 +1,3 @@
 bool request
 ---
-LogControl response
-string data_location
-string filename
+LoggerSettings current_settings

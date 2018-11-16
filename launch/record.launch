@@ -1,36 +1,17 @@
 <?xml version="1.0"?>
 <launch>
-
-    <arg name="node_name" default="data_logger"/>
     <arg name="record_topics" default="joint_states"/>
-    <arg name="data_prefix" default="collection"/>
-    <arg name="datapath" default="data/robot"/>
-    <arg name="logger_flag" default="data_logger_flag"/>
+    <arg name="log_directory" default="data/robot"/>
 
-    <!-- Setup the node with parameters for what we want to listen to 
-         and what the flag used to trigger recording -->
-
-    <node name="$(arg node_name)" pkg="data_logger_bag" type="logger.py" respawn="false" output="screen">
+    <!-- Setup the node with parameters for what we want to listen to -->
+    <node name="data_logger_bag" pkg="data_logger_bag" type="logger.py" respawn="false" output="screen">
 
         <!-- This location assumes that it is in your home dir. NOTE: path will be created for you -->
         <!-- default: data -->
-        <param name="datapath" value="$(arg datapath)" type="string"/>
+        <param name="log_directory" value="$(arg log_directory)" type="string"/>
 
-        <!-- Note: the topics are separated just by spaces -->
-        <!-- default: joint_states c6_logger_flag -->
+        <!-- Note: this is a space-delimited list -->
         <param name="record_topics" value="$(arg record_topics)" type="string"/>
 
-        <!-- prefix before filenames to append -->
-        <!-- default: collection -->
-        <param name="data_prefix" value="$(arg data_prefix)" type="string"/>
-
-        <!-- Topic name to trigger recording on -->
-        <!-- default: data_logger_flag -->
-        <param name="log_flag_topic" value="$(arg logger_flag)" type="string"/>
-
     </node>
-
-    <!-- This node will republish out topics to address the rosjava rosbag bug -->
-    <!--node name="logger_repub" pkg="data_logger_bag" type="rosjava_topic_republisher.py" respawn="true" output="screen" /-->
-
 </launch>
