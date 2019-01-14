@@ -1,31 +1,31 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2016, Socially Intelligent Machines Lab 
+# Copyright (c) 2016, Socially Intelligent Machines Lab
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
-# 
+#
 # * Redistributions of source code must retain the above copyright notice, this
 #   list of conditions and the following disclaimer.
-# 
+#
 # * Redistributions in binary form must reproduce the above copyright notice,
 #   this list of conditions and the following disclaimer in the documentation
 #   and/or other materials provided with the distribution.
-# 
-# * Neither the name of data_logger_bag nor the names of its 
+#
+# * Neither the name of data_logger_bag nor the names of its
 #   contributors may be used to endorse or promote products derived from
 #   this software without specific prior written permission.
-# 
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
-# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 # DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
 # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
 # DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
 # SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 # CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 # Author: Vivian Chu, vchu@gatech.edu
@@ -81,7 +81,7 @@ class DataLoggerBag:
     LOG_DIRECTORY_PARAM = "~log_directory"
 
     def __init__(self):
-        ''' 
+        '''
         Initialize the ROS node, subscribers, and services, and load parameters
         '''
 
@@ -141,7 +141,7 @@ class DataLoggerBag:
 
     def cb_set_settings(self, msg):
         '''
-        CB that changes the location of where we are saving data to based off of 
+        CB that changes the location of where we are saving data to based off of
         the current task and action
         '''
 
@@ -156,7 +156,7 @@ class DataLoggerBag:
 
             if msg.record_topics:
                 self.record_topics = msg.record_topics
-            
+
             if msg.log_prefix is not "":
                 self.log_prefix = msg.log_prefix
 
@@ -175,11 +175,11 @@ class DataLoggerBag:
         '''
 
         # Setup flag from message
-        rospy.loginfo(rospy.get_name() + ": I heard %s" % msg.data) 
-       
+        rospy.loginfo(rospy.get_name() + ": I heard %s" % msg.data)
+
         # Checks for change in flag first
         if self.is_logging != msg.data:
-            # Set the flag after checking 
+            # Set the flag after checking
             self.is_logging = msg.data
 
             # Then check what the message is telling us
@@ -215,14 +215,14 @@ class DataLoggerBag:
         if self.log_prefix != "":
             prefix = self.log_prefix + "_"
         self.current_bag_filename = os.path.join(self.log_directory, prefix + time.strftime("%Y-%m-%dT%H%M%S") + ".bag")
-        
+
         # Check if directory exists. We have to do this after constructing the filename, because
         # the parent directory we have to check depends on both the log directory and the prefix,
         # which may include additional folders.
         bag_directory = os.path.dirname(self.current_bag_filename)
         rospy.loginfo("ensuring that {} exists..".format(bag_directory))
         ensure_dir(bag_directory)
-       
+
         # Setup the command for rosbag
         # We don't use the compression flag (-j) to avoid slow downs
         rosbag_cmd = " ".join(("rosbag record -O", self.current_bag_filename, " ".join(self.record_topics)))
