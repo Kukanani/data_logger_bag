@@ -4,7 +4,12 @@
     <arg name="log_directory" default="data/robot"/>
 
     <!-- Setup the node with parameters for what we want to listen to -->
-    <node name="data_logger_bag" pkg="data_logger_bag" type="logger.py" respawn="false" output="screen">
+    <node
+        name="data_logger_bag"
+        pkg="data_logger_bag"
+        type="logger.py"
+        respawn="true"
+        output="screen">
 
         <!-- This location assumes that it is in your home dir. NOTE: path will be created for you -->
         <!-- default: data -->
@@ -12,6 +17,5 @@
 
         <!-- Note: this is a space-delimited list -->
         <param name="record_topics" value="$(arg record_topics)" type="string"/>
-
     </node>
 </launch>

@@ -43,21 +43,23 @@ import time
 import subprocess
 import signal
 from std_msgs.msg import Bool, String
-from data_logger_bag.msg import LogControl
+from data_logger_bag.msg import LoggerSettings
 from data_logger_bag.srv import GetSettingsResponse, GetSettings
 
-def terminate_ros_node(s):
+def terminate_ros_node(start):
     '''
     Useful function from ROS answers that kills all nodes with the string match
     at the beginning
     '''
-    list_cmd = subprocess.Popen("rosnode list", shell=True, stdout=subprocess.PIPE)
+    list_cmd = subprocess.Popen("rosnode list", shell=True,
+                                stdout=subprocess.PIPE)
     list_output = list_cmd.stdout.read()
     retcode = list_cmd.wait()
     assert retcode == 0, "List command returned %d" % retcode
-    for str in list_output.split("\n"):
-        if (str.startswith(s)):
-            os.system("rosnode kill " + str)
+    for s in list_output.split("\n"):
+        if (s.startswith(start)):
+            subprocess.call("rosnode kill {}".format(s),
+                            shell=True, stdout=open(os.devnull, "w"))
 
 def ensure_dir(d):
     '''
@@ -102,23 +104,32 @@ class DataLoggerBag:
         # default topics to record - separated only by a space
         default_record_topics = ""
         default_log_directory = "~/data_logger_bag"
-        self.record_topics = rospy.get_param(self.RECORD_TOPICS_PARAM, default_record_topics).split(" ")
-        log_directory = rospy.get_param(self.LOG_DIRECTORY_PARAM, default_log_directory)
+        self.record_topics = rospy.get_param(self.RECORD_TOPICS_PARAM,
+                                             default_record_topics).split(" ")
+        log_directory = rospy.get_param(self.LOG_DIRECTORY_PARAM,
+                                        default_log_directory)
         self.set_log_directory(log_directory)
 
         # Setup publisher for bagfile
-        self.bag_file_loc_pub = rospy.Publisher(self.OUTPUT_FILEPATH_TOPIC, String, queue_size=1)
+        # do not latch. Otherwise when we listen for the bag file name (which
+        # may be delayed), we will get the previous one instead.
+        self.bag_file_loc_pub = rospy.Publisher(self.OUTPUT_FILEPATH_TOPIC,
+                                                String, queue_size=1,
+                                                latch=False)
 
         # Setup service for getting the current settings
-        self.setting_srv = rospy.Service(self.GET_SETTINGS_SRV, GetSettings, self.cb_get_settings)
+        self.setting_srv = rospy.Service(self.GET_SETTINGS_SRV, GetSettings,
+                                         self.cb_get_settings)
 
         # Setup a listener for the task and action to put in a custom folder
         # This message also contains which logging topics that the user can
         # specify to listen to
-        rospy.Subscriber(self.SET_SETTINGS_TOPIC, LogControl, self.cb_set_settings)
+        rospy.Subscriber(self.SET_SETTINGS_TOPIC, LoggerSettings,
+                         self.cb_set_settings)
 
         # Listen for the flag to know when to start and stop the recording
-        rospy.Subscriber(self.LOGGER_START_STOP_TOPIC, Bool, self.cb_set_logging)
+        rospy.Subscriber(self.LOGGER_START_STOP_TOPIC, Bool,
+                         self.cb_set_logging)
 
         ###
         # Ready to rumble
@@ -163,10 +174,11 @@ class DataLoggerBag:
             self.set_log_directory(msg.log_directory)
 
             # Append the task and skill onto the data_location
-            rospy.loginfo("Location writing changed to: %s" % self.data_custom_location)
+            rospy.loginfo("Location writing changed to: %s" %
+                          self.log_directory)
 
             # What topics we're recording
-            rospy.loginfo("Topics that will be subscribed to: %s" % self.record_topics)
+            rospy.loginfo("Recording topics set to: %s" % self.record_topics)
 
 
     def cb_set_logging(self, msg):
@@ -174,14 +186,8 @@ class DataLoggerBag:
         Callback for when to trigger recording of bag files
         '''
 
-        # Setup flag from message
-        rospy.loginfo(rospy.get_name() + ": I heard %s" % msg.data)
-
         # Checks for change in flag first
         if self.is_logging != msg.data:
-            # Set the flag after checking
-            self.is_logging = msg.data
-
             # Then check what the message is telling us
             if msg.data:
                 self.startRecord()
@@ -210,26 +216,34 @@ class DataLoggerBag:
             ensure_dir(log_directory)
 
     def startRecord(self):
-        # construct the fully qualified filename from the log directory, prefix, and time.
+        rospy.loginfo("Starting bag file recording")
+        self.is_logging = True
+        # construct the fully qualified filename from the log directory, prefix,
+        # and time.
         prefix = ""
         if self.log_prefix != "":
             prefix = self.log_prefix + "_"
-        self.current_bag_filename = os.path.join(self.log_directory, prefix + time.strftime("%Y-%m-%dT%H%M%S") + ".bag")
+        self.current_bag_filename = \
+            os.path.join(self.log_directory,
+                         prefix + time.strftime("%Y-%m-%dT%H%M%S") + ".bag")
 
-        # Check if directory exists. We have to do this after constructing the filename, because
-        # the parent directory we have to check depends on both the log directory and the prefix,
-        # which may include additional folders.
+        # Check if directory exists. We have to do this after constructing the
+        # filename, because the parent directory we have to check depends on
+        # both the log directory and the prefix, which may include additional
+        # folders.
         bag_directory = os.path.dirname(self.current_bag_filename)
         rospy.loginfo("ensuring that {} exists..".format(bag_directory))
         ensure_dir(bag_directory)
 
         # Setup the command for rosbag
         # We don't use the compression flag (-j) to avoid slow downs
-        rosbag_cmd = " ".join(("rosbag record -O", self.current_bag_filename, " ".join(self.record_topics)))
+        rosbag_cmd = " ".join(("rosbag record -O", self.current_bag_filename,
+                               " ".join(self.record_topics)))
 
         # Start the command through the system
         rospy.loginfo("Running the following record command: %s" % rosbag_cmd)
-        self.rosbag_proc = subprocess.Popen([rosbag_cmd], shell=True)
+        self.rosbag_proc = subprocess.Popen([rosbag_cmd], shell=True,
+                                            stdout=open(os.devnull, 'w'))
 
     def stopRecord(self):
         # Send command to the process to end (same as ctrl+C)
@@ -239,8 +253,13 @@ class DataLoggerBag:
         # Kill all extra rosbag "record" nodes
         terminate_ros_node("/record")
 
+        # wait for the actual file to be created before continuing
+        while not os.path.isfile(self.current_bag_filename):
+            rospy.sleep(0.01)
         # Publish out what bag file that we finished reccording to
         self.bag_file_loc_pub.publish(String(self.current_bag_filename))
+
+        self.is_logging = False
 
 if __name__ == '__main__':
     dlb = DataLoggerBag()
